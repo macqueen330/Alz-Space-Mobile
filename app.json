@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Alz Space",
+    "slug": "alz-space-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/images/icon.png",
+    "scheme": "alzspace",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./src/assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alzspace.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "This app uses the microphone for voice input to chat with the AI assistant.",
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice to text.",
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.alzspace.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
+      ]
+    },
+    "plugins": [
+      "expo-notifications",
+      "expo-secure-store",
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "Allow Alz Space to access the microphone for voice input.",
+          "speechRecognitionPermission": "Allow Alz Space to use speech recognition."
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    }
+  }
+}
