@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,25 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { Gamepad2, HelpCircle, Image, Music, Video, Plus } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Gamepad2,
+  HelpCircle,
+  Image,
+  Music,
+  Video,
+  Plus,
+  ChevronLeft,
+  ArrowRight,
+} from 'lucide-react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 
 import { supabase } from '../../services/supabaseClient';
 import { getAssets } from '../../services/assetService';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
-import type { AssetData, Asset } from '../../types';
+import type { AssetData, Asset, RootStackParamList } from '../../types';
 
 const categoryIcons: Record<string, any> = {
   'Cognitive Games': Gamepad2,
@@ -23,20 +35,23 @@ const categoryIcons: Record<string, any> = {
 };
 
 const categoryColors: Record<string, string> = {
-  'Cognitive Games': Colors.primary,
+  'Cognitive Games': '#7C3AED', // Purple
   'Cognitive Quizzes': Colors.secondary,
-  'Family Media': Colors.success,
-  'Interactive Media': Colors.warning,
+  'Family Media': '#3B82F6', // Blue
+  'Interactive Media': Colors.primary,
 };
 
 export function AssetsScreen() {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [assets, setAssets] = useState<AssetData>({});
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const loadAssets = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const userAssets = await getAssets(user.id);
@@ -46,9 +61,11 @@ export function AssetsScreen() {
     }
   };
 
-  useEffect(() => {
-    loadAssets();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadAssets();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -75,8 +92,36 @@ export function AssetsScreen() {
     }
   };
 
+  const handleBack = () => {
+    if (selectedCategory) {
+      setSelectedCategory(null);
+    } else {
+      navigation.goBack();
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Background decorations */}
+      <View style={styles.gradientTop} />
+      <View style={styles.blobTopRight} />
+
+      {/* Header with back button */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleBack}
+          activeOpacity={0.7}
+        >
+          <ChevronLeft size={24} color={Colors.gray700} />
+        </TouchableOpacity>
+        <View style={styles.headerTitlePill}>
+          <Text style={styles.headerTitle}>
+            {selectedCategory || 'Assets Library'}
+          </Text>
+        </View>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -84,108 +129,223 @@ export function AssetsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {categories.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No assets yet</Text>
-            <Text style={styles.emptySubtext}>
-              Add games, quizzes, and media for patient activities
-            </Text>
-          </View>
-        ) : (
-          categories.map(category => {
-            const Icon = categoryIcons[category] || HelpCircle;
-            const color = categoryColors[category] || Colors.primary;
-            const categoryAssets = assets[category] || [];
+        {!selectedCategory ? (
+          // Category list view
+          <>
+            {categories.length === 0 ? (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIcon}>
+                  <Gamepad2 size={32} color={Colors.gray400} />
+                </View>
+                <Text style={styles.emptyText}>No assets yet</Text>
+                <Text style={styles.emptySubtext}>
+                  Add games, quizzes, and media for patient activities
+                </Text>
+              </View>
+            ) : (
+              categories.map((category) => {
+                const Icon = categoryIcons[category] || HelpCircle;
+                const color = categoryColors[category] || Colors.primary;
+                const categoryAssets = assets[category] || [];
 
-            return (
-              <View key={category} style={styles.categorySection}>
-                <TouchableOpacity
-                  style={styles.categoryHeader}
-                  onPress={() =>
-                    setSelectedCategory(selectedCategory === category ? null : category)
-                  }
-                >
-                  <View style={[styles.categoryIcon, { backgroundColor: color + '20' }]}>
-                    <Icon size={24} color={color} />
-                  </View>
-                  <View style={styles.categoryInfo}>
-                    <Text style={styles.categoryTitle}>{category}</Text>
-                    <Text style={styles.categoryCount}>
-                      {categoryAssets.length} items
+                return (
+                  <TouchableOpacity
+                    key={category}
+                    style={styles.categoryCard}
+                    onPress={() => setSelectedCategory(category)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={[
+                        styles.categoryIcon,
+                        { backgroundColor: color + '15' },
+                      ]}
+                    >
+                      <Icon size={28} color={color} />
+                    </View>
+                    <View style={styles.categoryInfo}>
+                      <Text style={styles.categoryTitle}>{category}</Text>
+                      <Text style={styles.categoryCount}>
+                        {categoryAssets.length} items
+                      </Text>
+                    </View>
+                    <View style={styles.arrowButton}>
+                      <ArrowRight size={18} color={Colors.gray300} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </>
+        ) : (
+          // Assets in category view
+          <View style={styles.assetsList}>
+            {(assets[selectedCategory] || []).map((asset: Asset) => {
+              const AssetIcon = getAssetIcon(asset.type);
+              return (
+                <View key={asset.id} style={styles.assetCard}>
+                  <View style={styles.assetIconWrap}>
+                    <Text style={styles.assetIconText}>
+                      {asset.type[0].toUpperCase()}
                     </Text>
                   </View>
-                </TouchableOpacity>
-
-                {selectedCategory === category && (
-                  <View style={styles.assetsList}>
-                    {categoryAssets.map((asset: Asset) => {
-                      const AssetIcon = getAssetIcon(asset.type);
-                      return (
-                        <View key={asset.id} style={styles.assetCard}>
-                          <AssetIcon size={20} color={Colors.textSecondary} />
-                          <View style={styles.assetInfo}>
-                            <Text style={styles.assetTitle}>{asset.title}</Text>
-                            <Text style={styles.assetDuration}>{asset.duration}</Text>
-                          </View>
-                        </View>
-                      );
-                    })}
-                    <TouchableOpacity style={styles.addAssetButton}>
-                      <Plus size={20} color={Colors.primary} />
-                      <Text style={styles.addAssetText}>Add {category.split(' ')[1]}</Text>
-                    </TouchableOpacity>
+                  <View style={styles.assetInfo}>
+                    <Text style={styles.assetTitle} numberOfLines={1}>
+                      {asset.title}
+                    </Text>
+                    <View style={styles.assetMeta}>
+                      <Text style={styles.assetType}>{asset.type}</Text>
+                      <Text style={styles.assetDot}>•</Text>
+                      <Text style={styles.assetDuration}>{asset.duration}</Text>
+                    </View>
                   </View>
-                )}
+                  <TouchableOpacity style={styles.previewButton}>
+                    <Text style={styles.previewButtonText}>Preview</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+
+            {(assets[selectedCategory] || []).length === 0 && (
+              <View style={styles.emptyCategory}>
+                <Text style={styles.emptyCategoryText}>
+                  No assets in this category yet.
+                </Text>
               </View>
-            );
-          })
+            )}
+          </View>
         )}
       </ScrollView>
-    </View>
+
+      {/* Floating Add Button */}
+      <View style={styles.fabContainer}>
+        <TouchableOpacity style={styles.fabButton} activeOpacity={0.8}>
+          <Plus size={20} color={Colors.bgWhite} />
+          <Text style={styles.fabText}>ADD ASSET</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgSoft,
+    backgroundColor: Colors.bgWhite,
   },
+
+  // ============ Background Decorations ============
+  gradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 128,
+    backgroundColor: Colors.secondary,
+    opacity: 0.15,
+  },
+  blobTopRight: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 288,
+    height: 288,
+    borderRadius: 144,
+    backgroundColor: Colors.secondary,
+    opacity: 0.15,
+  },
+
+  // ============ Header ============
+  headerRow: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 50,
+  },
+  backButton: {
+    minWidth: 44,
+    minHeight: 44,
+    width: 44,
+    height: 44,
+    padding: 10,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  headerTitlePill: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: Colors.gray800,
+    letterSpacing: -0.3,
+  },
+
+  // ============ Content ============
   scrollView: {
     flex: 1,
   },
   content: {
     padding: Layout.spacing.md,
+    paddingTop: 0,
+    paddingBottom: 140,
   },
+
+  // ============ Empty State ============
   emptyState: {
     alignItems: 'center',
     padding: Layout.spacing.xxl,
+    paddingTop: 60,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   emptyText: {
-    fontSize: Layout.fontSize.lg,
-    fontWeight: '600',
-    color: Colors.textMain,
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.gray800,
+    marginBottom: 8,
   },
   emptySubtext: {
-    fontSize: Layout.fontSize.md,
+    fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: Layout.spacing.xs,
     textAlign: 'center',
+    lineHeight: 20,
   },
-  categorySection: {
-    backgroundColor: Colors.bgWhite,
-    borderRadius: Layout.borderRadius.lg,
-    marginBottom: Layout.spacing.md,
-    overflow: 'hidden',
-  },
-  categoryHeader: {
+
+  // ============ Category Cards ============
+  categoryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Layout.spacing.md,
+    backgroundColor: Colors.gray50,
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.gray100,
   },
   categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -194,49 +354,140 @@ const styles = StyleSheet.create({
     marginLeft: Layout.spacing.md,
   },
   categoryTitle: {
-    fontSize: Layout.fontSize.md,
-    fontWeight: '600',
-    color: Colors.textMain,
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.gray800,
   },
   categoryCount: {
-    fontSize: Layout.fontSize.sm,
+    fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 2,
+    fontWeight: '500',
   },
+  arrowButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.bgWhite,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+
+  // ============ Assets List ============
   assetsList: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
-    padding: Layout.spacing.md,
+    gap: 12,
   },
   assetCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Layout.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
+    backgroundColor: Colors.bgWhite,
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.gray100,
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  assetIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assetIconText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.gray500,
   },
   assetInfo: {
     flex: 1,
-    marginLeft: Layout.spacing.md,
+    marginLeft: 12,
   },
   assetTitle: {
-    fontSize: Layout.fontSize.md,
-    color: Colors.textMain,
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.gray800,
+    marginBottom: 2,
   },
-  assetDuration: {
-    fontSize: Layout.fontSize.sm,
-    color: Colors.textSecondary,
-  },
-  addAssetButton: {
+  assetMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Layout.spacing.md,
-    marginTop: Layout.spacing.sm,
+    gap: 6,
   },
-  addAssetText: {
-    fontSize: Layout.fontSize.md,
-    color: Colors.primary,
-    marginLeft: Layout.spacing.sm,
+  assetType: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.gray400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  assetDot: {
+    fontSize: 10,
+    color: Colors.gray300,
+  },
+  assetDuration: {
+    fontSize: 11,
+    color: Colors.gray400,
+  },
+  previewButton: {
+    backgroundColor: Colors.gray900,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  previewButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.bgWhite,
+  },
+  emptyCategory: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyCategoryText: {
+    fontSize: 14,
+    color: Colors.gray400,
+    fontWeight: '500',
+  },
+
+  // ============ FAB ============
+  fabContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    paddingTop: 16,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+  },
+  fabButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 999,
+    gap: 8,
+    shadowColor: '#FDBA74',
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  fabText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.bgWhite,
+    letterSpacing: 1,
   },
 });

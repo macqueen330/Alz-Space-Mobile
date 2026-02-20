@@ -42,7 +42,7 @@ export function useVoice(): UseVoiceReturn {
             setError(state.error);
           }
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message || 'Failed to initialize voice');
       }
     };

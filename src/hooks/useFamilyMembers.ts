@@ -38,7 +38,7 @@ export function useFamilyMembers(): UseFamilyMembersReturn {
 
       const familyMembers = await getFamilyMembers(user.id);
       setMembers(familyMembers);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || 'Failed to load family members');
     } finally {
       setIsLoading(false);

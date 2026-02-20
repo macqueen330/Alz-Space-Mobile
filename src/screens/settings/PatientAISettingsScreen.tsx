@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Volume2, Plus, X, Save } from 'lucide-react-native';
+import { Volume2, Plus, X, Save, ChevronLeft } from 'lucide-react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { supabase } from '../../services/supabaseClient';
 import { getAISettings, saveAISettings } from '../../services/aiSettingsService';
@@ -50,9 +52,11 @@ export function PatientAISettingsScreen() {
   const [newQuestion, setNewQuestion] = useState('');
   const [newAnswer, setNewAnswer] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   useEffect(() => {
     if (selectedPatientId) {
@@ -100,7 +104,7 @@ export function PatientAISettingsScreen() {
     try {
       await saveAISettings(selectedPatientId, settings);
       Alert.alert('Success', 'AI settings saved successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
       Alert.alert('Error', error.message || 'Failed to save settings');
     } finally {
       setIsSaving(false);
@@ -144,11 +148,28 @@ export function PatientAISettingsScreen() {
     }));
   };
 
+  const navigation = useNavigation();
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+      <View style={styles.gradientTop} />
+
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <ChevronLeft size={24} color={Colors.gray700} />
+        </TouchableOpacity>
+        <View style={styles.headerTitlePill}>
+          <Text style={styles.headerTitle}>Patient AI Settings</Text>
+        </View>
+      </View>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         {/* Patient Selection */}
         {patients.length > 1 && (
@@ -314,20 +335,71 @@ export function PatientAISettingsScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgSoft,
+    backgroundColor: Colors.bgWhite,
+  },
+  flex: { flex: 1 },
+
+  gradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 128,
+    backgroundColor: '#DCFCE7',
+    opacity: 0.6,
+  },
+
+  headerRow: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 50,
+  },
+  backButton: {
+    minWidth: 44,
+    minHeight: 44,
+    width: 44,
+    height: 44,
+    padding: 10,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  headerTitlePill: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: Colors.gray800,
+    letterSpacing: -0.3,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: Layout.spacing.md,
+    padding: Layout.spacing.lg,
+    paddingTop: 0,
+    paddingBottom: 120,
   },
   section: {
     backgroundColor: Colors.bgWhite,

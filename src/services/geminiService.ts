@@ -41,7 +41,7 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
     
     console.log("Gemini response received successfully");
     return text || "I'm sorry, I couldn't process that.";
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini API Error:", {
       message: error?.message,
       status: error?.status,

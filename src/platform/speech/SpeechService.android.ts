@@ -42,7 +42,7 @@ class SpeechServiceClass {
       };
 
       await Speech.speak(text, speechOptions);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[SpeechService Android] Speak error:', error);
       options.onError?.(error);
     }

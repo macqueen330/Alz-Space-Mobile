@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 import type { Provider } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
+import * as Linking from 'expo-linking';
 
 export interface SignUpData {
   email: string;
@@ -42,12 +42,12 @@ export const signIn = async ({ email, password }: SignInData) => {
   return data;
 };
 
-// Get the redirect URL for OAuth
+// Get the redirect URL for OAuth - manually constructed to avoid expo-crypto dependency
 const getRedirectUrl = (): string => {
-  return makeRedirectUri({
-    scheme: 'alzspace',
-    path: 'auth-callback',
-  });
+  // Get the current URL scheme from Linking
+  const url = Linking.createURL('auth-callback');
+  console.log('Generated redirect URL:', url);
+  return url;
 };
 
 // Sign in with social provider (Google, GitHub, etc.)
@@ -65,14 +65,20 @@ export const signInWithProvider = async (provider: Provider) => {
 
   if (error) throw error;
 
+  console.log('OAuth URL generated:', data.url);
+
   // Open the OAuth URL in a browser
   if (data.url) {
     const result = await WebBrowser.openAuthSessionAsync(
       data.url,
       redirectUrl
     );
+    
+    console.log('WebBrowser result:', result.type);
 
     if (result.type === 'success') {
+      console.log('OAuth success, parsing callback URL');
+      
       // Extract the access token from the URL
       const url = result.url;
       const params = new URLSearchParams(url.split('#')[1] || url.split('?')[1]);
@@ -86,8 +92,16 @@ export const signInWithProvider = async (provider: Provider) => {
         });
 
         if (sessionError) throw sessionError;
+        
+        console.log('Session established successfully');
         return sessionData;
+      } else {
+        throw new Error('No tokens received in OAuth callback');
       }
+    } else if (result.type === 'cancel') {
+      throw new Error('OAuth cancelled by user');
+    } else {
+      throw new Error('OAuth failed');
     }
   }
 

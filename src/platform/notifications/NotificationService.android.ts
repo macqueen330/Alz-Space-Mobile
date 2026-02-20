@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 export interface NotificationContent {
@@ -32,8 +33,8 @@ class NotificationServiceClass {
       }),
     });
 
-    // Android-specific: Set notification channel
-    // TODO: Configure FCM for Android push notifications
+    // Android-specific: Set notification channels
+    // Note: For production push notifications, ensure FCM is configured with google-services.json
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
@@ -80,9 +81,16 @@ class NotificationServiceClass {
 
   async getExpoPushToken(): Promise<string | null> {
     try {
-      // TODO: Configure FCM for production Android
+      // Get projectId from app.json via expo-constants
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      
+      if (!projectId) {
+        console.error('[NotificationService Android] EAS projectId not configured in app.json');
+        return null;
+      }
+      
       const token = await Notifications.getExpoPushTokenAsync({
-        projectId: 'your-project-id', // Replace with actual EAS project ID
+        projectId,
       });
       console.log('[NotificationService Android] Push token:', token.data);
       return token.data;

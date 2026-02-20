@@ -12,13 +12,16 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import {
   Clock,
   Calendar,
   Zap,
   Plus,
   X,
+  ChevronLeft,
 } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { supabase } from '../../services/supabaseClient';
 import { createTask, updateTask } from '../../services/taskService';
@@ -27,12 +30,13 @@ import { Layout } from '../../constants/layout';
 import type { Task, TaskAsset, TaskType, RootStackParamList } from '../../types';
 
 type RouteProps = RouteProp<RootStackParamList, 'CreateTask'>;
+type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 const repeatOptions = ['Daily', 'Weekly', 'Customize'];
 const dayOptions = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function CreateTaskScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const existingTask = route.params?.task;
 
@@ -42,7 +46,7 @@ export function CreateTaskScreen() {
   const [repeat, setRepeat] = useState(existingTask?.repeat || 'Daily');
   const [customDays, setCustomDays] = useState<string[]>(existingTask?.customDays || []);
   const [automationEnabled, setAutomationEnabled] = useState(existingTask?.automationEnabled || false);
-  const [voiceReminder, setVoiceReminder] = useState(existingTask?.voiceReminder || true);
+  const [voiceReminder, setVoiceReminder] = useState(existingTask?.voiceReminder ?? true);
   const [assets, setAssets] = useState<TaskAsset[]>(existingTask?.assets || []);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -51,6 +55,11 @@ export function CreateTaskScreen() {
   const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('Error', 'Please enter a task title');
+      return;
+    }
+
+    if (repeat === 'Customize' && customDays.length === 0) {
+      Alert.alert('Error', 'Please select at least one custom day');
       return;
     }
 
@@ -80,8 +89,8 @@ export function CreateTaskScreen() {
         Alert.alert('Success', 'Task created successfully');
       }
 
-      navigation.goBack();
-    } catch (error: any) {
+      navigation.navigate('TaskList');
+    } catch (error: unknown) {
       Alert.alert('Error', error.message || 'Failed to save task');
     } finally {
       setIsSaving(false);
@@ -109,11 +118,32 @@ export function CreateTaskScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Background decorations (standardized) */}
+          <View style={styles.gradientTop} />
+          <View style={styles.blobTopRight} />
+
+        {/* Header with back button */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={24} color={Colors.gray700} />
+          </TouchableOpacity>
+          <View style={styles.headerTitlePill}>
+            <Text style={styles.headerTitle}>
+              {isEditing ? 'Refine Plan' : 'New Plan'}
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         {/* Title */}
         <View style={styles.section}>
           <Text style={styles.label}>Task Title</Text>
@@ -263,32 +293,100 @@ export function CreateTaskScreen() {
         </View>
       </ScrollView>
 
-      {/* Save Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={isSaving}
-        >
-          <Text style={styles.saveButtonText}>
-            {isSaving ? 'Saving...' : isEditing ? 'Update Task' : 'Create Task'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        {/* Save Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={isSaving}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.saveButtonText}>
+              {isSaving ? 'Saving...' : isEditing ? 'Update Task' : 'Create Task'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgSoft,
+    backgroundColor: Colors.bgWhite,
   },
+  flex: {
+    flex: 1,
+  },
+
+  // ============ Background Decorations ============
+  gradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 256,
+    backgroundColor: Colors.secondary,
+    opacity: 0.15,
+  },
+  blobTopRight: {
+    position: 'absolute',
+    top: 0,
+    right: -50,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: Colors.secondary,
+    opacity: 0.1,
+  },
+
+  // ============ Header ============
+  headerRow: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 50,
+  },
+  backButton: {
+    minWidth: 44,
+    minHeight: 44,
+    width: 44,
+    height: 44,
+    padding: 10,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  headerTitlePill: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: Colors.gray800,
+    letterSpacing: -0.3,
+  },
+
+  // ============ Content ============
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: Layout.spacing.md,
+    padding: Layout.spacing.lg,
+    paddingTop: 0,
+    paddingBottom: 120,
   },
   section: {
     backgroundColor: Colors.bgWhite,
@@ -436,23 +534,27 @@ const styles = StyleSheet.create({
     marginLeft: Layout.spacing.md,
   },
   footer: {
-    padding: Layout.spacing.md,
+    padding: Layout.spacing.lg,
+    paddingBottom: 32,
     backgroundColor: Colors.bgWhite,
-    borderTopWidth: 1,
-    borderTopColor: Colors.gray200,
   },
   saveButton: {
     backgroundColor: Colors.primary,
-    paddingVertical: Layout.spacing.md,
-    borderRadius: Layout.borderRadius.md,
+    paddingVertical: 16,
+    borderRadius: 999,
     alignItems: 'center',
+    shadowColor: '#FDBA74',
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   saveButtonDisabled: {
     opacity: 0.7,
   },
   saveButtonText: {
     color: Colors.bgWhite,
-    fontSize: Layout.fontSize.lg,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

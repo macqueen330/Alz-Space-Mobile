@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 export interface NotificationContent {
   title: string;
@@ -61,9 +61,17 @@ class NotificationServiceClass {
 
   async getExpoPushToken(): Promise<string | null> {
     try {
-      // For iOS, need to get the APNs token first
+      // Get projectId from app.json via expo-constants
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      
+      if (!projectId) {
+        console.error('[NotificationService iOS] EAS projectId not configured in app.json');
+        return null;
+      }
+      
+      // For iOS, get the APNs token via Expo push token
       const token = await Notifications.getExpoPushTokenAsync({
-        projectId: 'your-project-id', // Replace with actual EAS project ID
+        projectId,
       });
       console.log('[NotificationService iOS] Push token:', token.data);
       return token.data;

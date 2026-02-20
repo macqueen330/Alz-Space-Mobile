@@ -13,6 +13,8 @@ web-build/
 *.p12
 *.key
 *.mobileprovision
+*.keystore
+play-store-key.json
 
 # Metro
 .metro-health-check*
@@ -25,6 +27,9 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
+.AppleDouble
+.LSOverride
+._*
 
 # Local env files
 .env
@@ -44,10 +49,29 @@ coverage/
 .vscode/
 *.swp
 *.swo
+*.tmp
+*.temp
+*~
+
+# Local machine artifacts
+buildServer.json
+
+# Internal / AI-generated documentation (not for public repo)
+docs/internal/
+
+# Generated scripts (icon generation, etc.)
+scripts/
+
+# Cursor / AI agent artifacts
+.cursor/debug.log
 
 # iOS
 ios/Pods/
 ios/.xcode.env.local
+ios/build/
+ios/DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
 
 # Android
 android/.gradle/

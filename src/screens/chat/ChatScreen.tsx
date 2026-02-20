@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,106 +11,51 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Send, Mic, MicOff, Volume2, VolumeX } from 'lucide-react-native';
+import { Send, Mic, MicOff, Volume2, VolumeX, Trash2 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
-import { supabase } from '../../services/supabaseClient';
-import { getChatHistory, saveMessage } from '../../services/chatService';
-import { sendMessageToGemini } from '../../services/geminiService';
 import { VoiceService } from '../../platform/voice';
 import { SpeechService } from '../../platform/speech';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
+import { useChat } from '../../hooks/useChat';
 import type { ChatMessage } from '../../types';
 
 export function ChatScreen() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    messages, inputText, setInputText, isLoading,
+    sendMessage, clearMessages, flatListRef,
+  } = useChat();
+
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [userId, setUserId] = useState<string>('');
-  const flatListRef = useRef<FlatList>(null);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
 
   useEffect(() => {
-    loadChatHistory();
-    initializeVoice();
-
+    const init = async () => {
+      try {
+        await VoiceService.initialize();
+        VoiceService.setCallback((state) => {
+          if (state.isListening !== undefined) setIsListening(state.isListening);
+          if (state.results && state.results.length > 0) {
+            setInputText((prev) => prev + state.results![0]);
+          }
+        });
+      } catch (error) {
+        console.error('Error initializing voice:', error);
+      }
+    };
+    init();
     return () => {
       VoiceService.destroy();
       SpeechService.stop();
     };
-  }, []);
-
-  const loadChatHistory = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      setUserId(user.id);
-      const history = await getChatHistory(user.id);
-      setMessages(history);
-    } catch (error) {
-      console.error('Error loading chat history:', error);
-    }
-  };
-
-  const initializeVoice = async () => {
-    try {
-      await VoiceService.initialize();
-      VoiceService.setCallback((state) => {
-        if (state.isListening !== undefined) {
-          setIsListening(state.isListening);
-        }
-        if (state.results && state.results.length > 0) {
-          const transcript = state.results[0];
-          setInputText(prev => prev + transcript);
-        }
-        if (state.error) {
-          console.error('Voice error:', state.error);
-        }
-      });
-    } catch (error) {
-      console.error('Error initializing voice:', error);
-    }
-  };
+  }, [setInputText]);
 
   const handleSend = async () => {
-    if (!inputText.trim() || !userId) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      sender: 'user',
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
-    setIsLoading(true);
-
-    try {
-      // Save user message
-      await saveMessage(userId, userMessage.text, 'user');
-
-      // Get AI response
-      const aiResponse = await sendMessageToGemini(userMessage.text);
-
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: aiResponse,
-        sender: 'ai',
-        timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-      await saveMessage(userId, aiResponse, 'ai');
-
-      // Speak the response
+    const aiResponse = await sendMessage();
+    if (aiResponse && isAudioEnabled) {
       handleSpeak(aiResponse);
-    } catch (error) {
-      console.error('Error sending message:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -137,42 +82,54 @@ export function ChatScreen() {
   };
 
   const renderMessage = ({ item: message }: { item: ChatMessage }) => {
-    const isUser = message.sender === 'user';
+    if (message.sender === 'user') {
+      return (
+        <LinearGradient
+          colors={[Colors.primary, '#FF6B00']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.messageBubble, styles.userBubble]}
+        >
+          <Text style={[styles.messageText, styles.userMessageText]}>{message.text}</Text>
+        </LinearGradient>
+      );
+    }
 
     return (
-      <View
-        style={[
-          styles.messageBubble,
-          isUser ? styles.userBubble : styles.aiBubble,
-        ]}
-      >
-        <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-          {message.text}
-        </Text>
-        {!isUser && (
-          <TouchableOpacity
-            style={styles.speakButton}
-            onPress={() => handleSpeak(message.text)}
-          >
-            {isSpeaking ? (
-              <VolumeX size={16} color={Colors.primary} />
-            ) : (
-              <Volume2 size={16} color={Colors.primary} />
-            )}
-          </TouchableOpacity>
-        )}
+      <View style={[styles.messageBubble, styles.aiBubble]}>
+        <Text style={styles.messageText}>{message.text}</Text>
+        <TouchableOpacity style={styles.speakButton} onPress={() => handleSpeak(message.text)}>
+          {isSpeaking ? (
+            <VolumeX size={16} color={Colors.primary} />
+          ) : (
+            <Volume2 size={16} color={Colors.primary} />
+          )}
+        </TouchableOpacity>
       </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <View style={styles.gradientTop} />
+
+      <View style={styles.headerControls}>
+        <TouchableOpacity
+          style={[styles.headerButton, isAudioEnabled ? styles.headerButtonActive : styles.headerButtonInactive]}
+          onPress={() => setIsAudioEnabled((prev) => !prev)}
+        >
+          {isAudioEnabled ? <Volume2 size={18} color={Colors.primary} /> : <VolumeX size={18} color={Colors.gray400} />}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.headerButton} onPress={clearMessages}>
+          <Trash2 size={18} color={Colors.gray400} />
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {/* Messages */}
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -183,14 +140,11 @@ export function ChatScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>Start a conversation!</Text>
-              <Text style={styles.emptySubtext}>
-                I'm here to help with care advice and support.
-              </Text>
+              <Text style={styles.emptySubtext}>I'm here to help with care advice and support.</Text>
             </View>
           }
         />
 
-        {/* Loading Indicator */}
         {isLoading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={Colors.primary} />
@@ -198,36 +152,36 @@ export function ChatScreen() {
           </View>
         )}
 
-        {/* Input Area */}
         <View style={styles.inputContainer}>
           <TouchableOpacity
             style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
             onPress={handleVoiceToggle}
           >
-            {isListening ? (
-              <MicOff size={24} color={Colors.bgWhite} />
-            ) : (
-              <Mic size={24} color={Colors.primary} />
-            )}
+            {isListening ? <MicOff size={24} color={Colors.bgWhite} /> : <Mic size={24} color={Colors.primary} />}
           </TouchableOpacity>
 
-          <TextInput
-            style={styles.input}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Type a message..."
-            placeholderTextColor={Colors.textMuted}
-            multiline
-            maxLength={1000}
-          />
-
-          <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
-            onPress={handleSend}
-            disabled={!inputText.trim() || isLoading}
-          >
-            <Send size={24} color={inputText.trim() ? Colors.bgWhite : Colors.gray400} />
-          </TouchableOpacity>
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={styles.input}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Type a message..."
+              placeholderTextColor={Colors.textMuted}
+              multiline
+              maxLength={1000}
+            />
+            <TouchableOpacity onPress={handleSend} disabled={!inputText.trim() || isLoading} activeOpacity={0.9}>
+              {inputText.trim() ? (
+                <LinearGradient colors={[Colors.primary, '#FF6B00']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sendButton}>
+                  <Send size={22} color={Colors.bgWhite} />
+                </LinearGradient>
+              ) : (
+                <View style={[styles.sendButton, styles.sendButtonDisabled]}>
+                  <Send size={22} color={Colors.gray400} />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -235,113 +189,61 @@ export function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bgSoft,
+  container: { flex: 1, backgroundColor: Colors.bgSoft },
+  gradientTop: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 128,
+    backgroundColor: Colors.secondary, opacity: 0.15,
   },
-  keyboardView: {
-    flex: 1,
+  headerControls: {
+    position: 'absolute', top: 80, right: 16, flexDirection: 'row', gap: 8, zIndex: 20,
   },
-  messagesList: {
-    padding: Layout.spacing.md,
-    paddingBottom: Layout.spacing.lg,
+  headerButton: {
+    padding: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.9)',
+    shadowColor: Colors.shadowColor, shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
   },
+  headerButtonActive: { backgroundColor: 'rgba(255,255,255,0.9)' },
+  headerButtonInactive: { backgroundColor: 'rgba(255,255,255,0.5)' },
+  keyboardView: { flex: 1 },
+  messagesList: { padding: Layout.spacing.lg, paddingTop: 96, paddingBottom: Layout.spacing.lg },
   messageBubble: {
-    maxWidth: '80%',
-    padding: Layout.spacing.md,
-    borderRadius: Layout.borderRadius.lg,
-    marginBottom: Layout.spacing.sm,
+    maxWidth: '85%', padding: Layout.spacing.md, borderRadius: Layout.borderRadius.lg,
+    marginBottom: Layout.spacing.sm, shadowColor: Colors.shadowColor,
+    shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
   },
-  userBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: Colors.primary,
-  },
+  userBubble: { alignSelf: 'flex-end', borderTopRightRadius: 6 },
   aiBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.bgWhite,
+    alignSelf: 'flex-start', backgroundColor: Colors.bgWhite, borderTopLeftRadius: 6,
+    borderWidth: 1, borderColor: Colors.gray100,
   },
-  messageText: {
-    fontSize: Layout.fontSize.md,
-    color: Colors.textMain,
-    lineHeight: 22,
-  },
-  userMessageText: {
-    color: Colors.bgWhite,
-  },
-  speakButton: {
-    alignSelf: 'flex-end',
-    marginTop: Layout.spacing.xs,
-    padding: Layout.spacing.xs,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: Layout.fontSize.lg,
-    fontWeight: '600',
-    color: Colors.textMain,
-  },
-  emptySubtext: {
-    fontSize: Layout.fontSize.md,
-    color: Colors.textSecondary,
-    marginTop: Layout.spacing.xs,
-    textAlign: 'center',
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Layout.spacing.sm,
-  },
-  loadingText: {
-    fontSize: Layout.fontSize.sm,
-    color: Colors.textSecondary,
-    marginLeft: Layout.spacing.sm,
-  },
+  messageText: { fontSize: Layout.fontSize.md, color: Colors.textMain, lineHeight: 22 },
+  userMessageText: { color: Colors.bgWhite },
+  speakButton: { alignSelf: 'flex-end', marginTop: Layout.spacing.xs, padding: Layout.spacing.xs },
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 },
+  emptyText: { fontSize: Layout.fontSize.lg, fontWeight: '600', color: Colors.textMain },
+  emptySubtext: { fontSize: Layout.fontSize.md, color: Colors.textSecondary, marginTop: Layout.spacing.xs, textAlign: 'center' },
+  loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: Layout.spacing.sm },
+  loadingText: { fontSize: Layout.fontSize.sm, color: Colors.textSecondary, marginLeft: Layout.spacing.sm },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: Layout.spacing.md,
-    backgroundColor: Colors.bgWhite,
-    borderTopWidth: 1,
-    borderTopColor: Colors.gray200,
+    flexDirection: 'row', alignItems: 'center', padding: Layout.spacing.md,
+    backgroundColor: Colors.bgWhite, borderTopWidth: 1, borderTopColor: Colors.gray200, paddingBottom: 24,
   },
   voiceButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.gray100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Layout.spacing.sm,
+    width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.gray100,
+    justifyContent: 'center', alignItems: 'center', marginRight: Layout.spacing.sm,
   },
   voiceButtonActive: {
-    backgroundColor: Colors.error,
+    backgroundColor: Colors.error, shadowColor: '#FCA5A5',
+    shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
+  },
+  inputWrap: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.gray50,
+    borderRadius: 999, paddingVertical: 6, paddingHorizontal: 8, borderWidth: 1, borderColor: Colors.gray200,
   },
   input: {
-    flex: 1,
-    backgroundColor: Colors.gray100,
-    borderRadius: Layout.borderRadius.lg,
-    paddingHorizontal: Layout.spacing.md,
-    paddingVertical: Layout.spacing.sm,
-    fontSize: Layout.fontSize.md,
-    color: Colors.textMain,
-    maxHeight: 100,
-    minHeight: 44,
+    flex: 1, backgroundColor: 'transparent', paddingHorizontal: Layout.spacing.md,
+    paddingVertical: Layout.spacing.sm, fontSize: Layout.fontSize.md, color: Colors.textMain,
+    maxHeight: 100, minHeight: 44,
   },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: Layout.spacing.sm,
-  },
-  sendButtonDisabled: {
-    backgroundColor: Colors.gray200,
-  },
+  sendButton: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  sendButtonDisabled: { backgroundColor: Colors.gray200 },
 });

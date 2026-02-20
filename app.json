@@ -7,7 +7,7 @@
     "icon": "./src/assets/images/icon.png",
     "scheme": "alzspace",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./src/assets/images/splash.png",
       "resizeMode": "contain",
@@ -17,8 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.alzspace.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "This app uses the microphone for voice input to chat with the AI assistant.",
-        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice to text.",
+        "NSMicrophoneUsageDescription": "Allow Alz Space to access the microphone for voice input.",
+        "NSSpeechRecognitionUsageDescription": "Allow Alz Space to use speech recognition.",
         "UIBackgroundModes": [
           "remote-notification"
         ]
@@ -30,29 +30,48 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.alzspace.app",
+      "versionCode": 1,
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "alzspace",
+              "host": "auth-callback"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "plugins": [
-      "expo-notifications",
-      "expo-secure-store",
       [
-        "@react-native-voice/voice",
+        "expo-build-properties",
         {
-          "microphonePermission": "Allow Alz Space to access the microphone for voice input.",
-          "speechRecognitionPermission": "Allow Alz Space to use speech recognition."
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ],
+      "expo-notifications",
+      "expo-secure-store",
       "expo-asset",
       "expo-font"
     ],
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "73792ed2-98cd-4e1b-ad96-8faef00e96c8"
       }
-    }
+    },
+    "owner": "alz-space"
   }
 }

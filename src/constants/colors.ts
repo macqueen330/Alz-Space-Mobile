@@ -1,8 +1,9 @@
 export const Colors = {
   // Primary colors
-  primary: '#F97316',      // Orange
-  secondary: '#06B6D4',    // Cyan
-  accent: '#10B981',       // Green
+  primary: '#FF8C42',      // Orange
+  secondary: '#4ECDC4',    // Teal
+  accent: '#8A6FE8',       // Purple
+  primaryLight: '#FFE4D1',
 
   // Background
   bgSoft: '#F9FAFB',

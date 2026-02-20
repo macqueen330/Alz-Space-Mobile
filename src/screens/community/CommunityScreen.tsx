@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,12 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  TextInput,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Heart, Eye, MessageCircle, Plus } from 'lucide-react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { getPosts, likePost, incrementViews } from '../../services/postService';
 import { supabase } from '../../services/supabaseClient';
@@ -29,6 +32,7 @@ export function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadPosts = async () => {
     try {
@@ -42,9 +46,11 @@ export function CommunityScreen() {
     }
   };
 
-  useEffect(() => {
-    loadPosts();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadPosts();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -75,9 +81,14 @@ export function CommunityScreen() {
     }
   };
 
-  const filteredPosts = selectedType
-    ? posts.filter(p => p.type === selectedType)
-    : posts;
+  const filteredPosts = posts.filter((post) => {
+    const matchesType = selectedType ? post.type === selectedType : true;
+    const matchesSearch =
+      !searchQuery.trim() ||
+      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.content.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesType && matchesSearch;
+  });
 
   const renderPost = ({ item: post }: { item: Post }) => (
     <TouchableOpacity
@@ -156,12 +167,24 @@ export function CommunityScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Background decorations */}
+      <View style={styles.blobTopRight} />
+      <View style={styles.blobBottomLeft} />
+      <View style={styles.blobMidRight} />
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Community</Text>
-        <TouchableOpacity style={styles.createButton}>
-          <Plus size={24} color={Colors.bgWhite} />
-        </TouchableOpacity>
+      </View>
+
+      <View style={styles.searchWrap}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search stories, questions, tips..."
+          placeholderTextColor={Colors.gray400}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
       </View>
 
       {/* Filter Tabs */}
@@ -177,6 +200,8 @@ export function CommunityScreen() {
         data={filteredPosts}
         keyExtractor={(item) => item.id}
         renderItem={renderPost}
+        numColumns={2}
+        columnWrapperStyle={styles.postRow}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -190,6 +215,11 @@ export function CommunityScreen() {
           </View>
         }
       />
+
+      <TouchableOpacity style={styles.fab} activeOpacity={0.9}>
+        <Plus size={20} color={Colors.bgWhite} />
+        <Text style={styles.fabText}>Post</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -204,107 +234,162 @@ function ScrollableFilters({
   const types = ['Story', 'Question', 'Tip', 'Task'];
 
   return (
-    <View style={styles.filtersRow}>
-      <TouchableOpacity
-        style={[
-          styles.filterChip,
-          !selectedType && styles.filterChipActive,
-        ]}
-        onPress={() => onSelect(null)}
-      >
-        <Text
-          style={[
-            styles.filterChipText,
-            !selectedType && styles.filterChipTextActive,
-          ]}
-        >
-          All
-        </Text>
-      </TouchableOpacity>
-      {types.map(type => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={styles.filtersRow}>
         <TouchableOpacity
-          key={type}
           style={[
             styles.filterChip,
-            selectedType === type && styles.filterChipActive,
+            !selectedType && styles.filterChipActive,
           ]}
-          onPress={() => onSelect(type)}
+          onPress={() => onSelect(null)}
         >
           <Text
             style={[
               styles.filterChipText,
-              selectedType === type && styles.filterChipTextActive,
+              !selectedType && styles.filterChipTextActive,
             ]}
           >
-            {type}
+            All
           </Text>
         </TouchableOpacity>
-      ))}
-    </View>
+        {types.map(type => (
+          <TouchableOpacity
+            key={type}
+            style={[
+              styles.filterChip,
+              selectedType === type && styles.filterChipActive,
+            ]}
+            onPress={() => onSelect(type)}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                selectedType === type && styles.filterChipTextActive,
+              ]}
+            >
+              {type}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgSoft,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Layout.spacing.md,
     backgroundColor: Colors.bgWhite,
+  },
+
+  blobTopRight: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: 'rgba(78,205,196,0.15)',
+  },
+  blobBottomLeft: {
+    position: 'absolute',
+    bottom: '10%',
+    left: -40,
+    width: 288,
+    height: 288,
+    borderRadius: 144,
+    backgroundColor: 'rgba(255,140,66,0.1)',
+  },
+  blobMidRight: {
+    position: 'absolute',
+    top: '40%',
+    right: -20,
+    width: 224,
+    height: 224,
+    borderRadius: 112,
+    backgroundColor: 'rgba(139,92,246,0.5)',
+    opacity: 0.6,
+  },
+
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   title: {
-    fontSize: Layout.fontSize.xxl,
-    fontWeight: 'bold',
-    color: Colors.textMain,
+    fontSize: 28,
+    fontWeight: '900',
+    color: Colors.gray800,
+    letterSpacing: -0.5,
   },
-  createButton: {
-    backgroundColor: Colors.primary,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  searchWrap: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  searchInput: {
+    backgroundColor: Colors.bgWhite,
+    borderWidth: 1,
+    borderColor: Colors.gray100,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.gray800,
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
   filterContainer: {
-    backgroundColor: Colors.bgWhite,
-    paddingBottom: Layout.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray200,
+    paddingBottom: 12,
   },
   filtersRow: {
     flexDirection: 'row',
-    paddingHorizontal: Layout.spacing.md,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
   },
   filterChip: {
-    paddingHorizontal: Layout.spacing.md,
-    paddingVertical: Layout.spacing.sm,
-    borderRadius: Layout.borderRadius.full,
-    backgroundColor: Colors.gray100,
-    marginRight: Layout.spacing.sm,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.bgWhite,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: Colors.gray100,
   },
   filterChipActive: {
     backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   filterChipText: {
-    fontSize: Layout.fontSize.sm,
-    color: Colors.textSecondary,
-    fontWeight: '500',
+    fontSize: 12,
+    color: Colors.gray500,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   filterChipTextActive: {
     color: Colors.bgWhite,
   },
   content: {
-    padding: Layout.spacing.md,
+    paddingHorizontal: 16,
+    paddingBottom: 120,
+  },
+  postRow: {
+    justifyContent: 'space-between',
   },
   postCard: {
     backgroundColor: Colors.bgWhite,
-    borderRadius: Layout.borderRadius.lg,
-    padding: Layout.spacing.md,
-    marginBottom: Layout.spacing.md,
+    borderRadius: 24,
+    padding: 14,
+    marginBottom: 12,
+    width: '48%',
+    borderWidth: 1,
+    borderColor: Colors.gray100,
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
   },
   postHeader: {
     flexDirection: 'row',
@@ -312,9 +397,9 @@ const styles = StyleSheet.create({
     marginBottom: Layout.spacing.sm,
   },
   authorAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   authorInfo: {
     flex: 1,
@@ -323,36 +408,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   authorName: {
-    fontSize: Layout.fontSize.md,
-    fontWeight: '600',
-    color: Colors.textMain,
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.gray700,
   },
   typeBadge: {
-    marginLeft: Layout.spacing.sm,
-    paddingHorizontal: Layout.spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Layout.borderRadius.sm,
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   typeText: {
-    fontSize: Layout.fontSize.xs,
-    fontWeight: '500',
+    fontSize: 10,
+    fontWeight: '700',
   },
   postTitle: {
-    fontSize: Layout.fontSize.lg,
-    fontWeight: '600',
-    color: Colors.textMain,
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.gray800,
     marginBottom: Layout.spacing.xs,
   },
   postContent: {
-    fontSize: Layout.fontSize.md,
+    fontSize: 12,
     color: Colors.textSecondary,
-    lineHeight: 22,
+    lineHeight: 18,
   },
   postImage: {
     width: '100%',
-    height: 200,
-    borderRadius: Layout.borderRadius.md,
-    marginTop: Layout.spacing.md,
+    height: 120,
+    borderRadius: 16,
+    marginTop: 12,
   },
   tagsRow: {
     flexDirection: 'row',
@@ -371,20 +456,21 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
-    marginTop: Layout.spacing.md,
-    paddingTop: Layout.spacing.md,
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.gray100,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: Layout.spacing.lg,
+    marginRight: 12,
   },
   actionText: {
-    fontSize: Layout.fontSize.sm,
+    fontSize: 11,
     color: Colors.textSecondary,
-    marginLeft: Layout.spacing.xs,
+    marginLeft: 4,
+    fontWeight: '700',
   },
   emptyState: {
     alignItems: 'center',
@@ -399,5 +485,27 @@ const styles = StyleSheet.create({
     fontSize: Layout.fontSize.md,
     color: Colors.textSecondary,
     marginTop: Layout.spacing.xs,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 90,
+    right: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 999,
+    shadowColor: '#FDBA74',
+    shadowOpacity: 0.8,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  fabText: {
+    color: Colors.bgWhite,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 });

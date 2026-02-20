@@ -11,16 +11,18 @@ import { TaskListScreen } from '../screens/tasks/TaskListScreen';
 import { StatisticsScreen } from '../screens/statistics/StatisticsScreen';
 import { AssetsScreen } from '../screens/assets/AssetsScreen';
 import { Colors } from '../constants/colors';
-import type { RootStackParamList } from '../types';
+import type { RootStackParamList, UserRole } from '../types';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 interface AppNavigatorProps {
   isAuthenticated: boolean;
   isLoading: boolean;
+  userRole: UserRole;
+  onRoleSelected: (role: UserRole) => void;
 }
 
-export function AppNavigator({ isAuthenticated, isLoading }: AppNavigatorProps) {
+export function AppNavigator({ isAuthenticated, isLoading, userRole, onRoleSelected }: AppNavigatorProps) {
   if (isLoading) {
     return (
       <View style={styles.loading}>
@@ -38,70 +40,56 @@ export function AppNavigator({ isAuthenticated, isLoading }: AppNavigatorProps) 
     >
       {isAuthenticated ? (
         <>
-          <Stack.Screen name="Main" component={MainTabNavigator} />
+          <Stack.Screen name="Main">
+            {() => <MainTabNavigator userRole={userRole} />}
+          </Stack.Screen>
           <Stack.Screen 
             name="CreateTask" 
             component={CreateTaskScreen}
             options={{
-              headerShown: true,
-              headerTitle: 'Create Task',
-              headerBackTitle: 'Back',
-              headerTintColor: Colors.primary,
+              headerShown: false,
             }}
           />
           <Stack.Screen 
             name="Chat" 
             component={ChatScreen}
             options={{
-              headerShown: true,
-              headerTitle: 'AI Assistant',
-              headerBackTitle: 'Back',
-              headerTintColor: Colors.primary,
+              headerShown: false,
             }}
           />
           <Stack.Screen 
             name="PatientAISettings" 
             component={PatientAISettingsScreen}
             options={{
-              headerShown: true,
-              headerTitle: 'AI Settings',
-              headerBackTitle: 'Back',
-              headerTintColor: Colors.primary,
+              headerShown: false,
             }}
           />
           <Stack.Screen 
             name="TaskList" 
             component={TaskListScreen}
             options={{
-              headerShown: true,
-              headerTitle: 'All Tasks',
-              headerBackTitle: 'Back',
-              headerTintColor: Colors.primary,
+              headerShown: false,
             }}
           />
           <Stack.Screen 
             name="Statistics" 
             component={StatisticsScreen}
             options={{
-              headerShown: true,
-              headerTitle: 'Statistics',
-              headerBackTitle: 'Back',
-              headerTintColor: Colors.primary,
+              headerShown: false,
             }}
           />
           <Stack.Screen 
             name="Assets" 
             component={AssetsScreen}
             options={{
-              headerShown: true,
-              headerTitle: 'Assets Library',
-              headerBackTitle: 'Back',
-              headerTintColor: Colors.primary,
+              headerShown: false,
             }}
           />
         </>
       ) : (
-        <Stack.Screen name="Auth" component={AuthNavigator} />
+        <Stack.Screen name="Auth">
+          {() => <AuthNavigator onRoleSelected={onRoleSelected} />}
+        </Stack.Screen>
       )}
     </Stack.Navigator>
   );

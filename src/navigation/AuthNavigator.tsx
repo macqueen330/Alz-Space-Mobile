@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 
 import { AuthScreen } from '../screens/auth/AuthScreen';
 import { Colors } from '../constants/colors';
+import type { UserRole } from '../types';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -12,7 +13,11 @@ type AuthStackParamList = {
 
 const Stack = createStackNavigator<AuthStackParamList>();
 
-export function AuthNavigator() {
+interface AuthNavigatorProps {
+  onRoleSelected: (role: UserRole) => void;
+}
+
+export function AuthNavigator({ onRoleSelected }: AuthNavigatorProps) {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -20,7 +25,9 @@ export function AuthNavigator() {
         cardStyle: { backgroundColor: Colors.bgWhite },
       }}
     >
-      <Stack.Screen name="Login" component={AuthScreen} />
+      <Stack.Screen name="Login">
+        {() => <AuthScreen onRoleSelected={onRoleSelected} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }

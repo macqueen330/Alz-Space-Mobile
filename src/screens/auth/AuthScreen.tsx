@@ -8,86 +8,258 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
+import { User, Mail, Lock, Eye, EyeOff, AlertCircle, ChevronLeft } from 'lucide-react-native';
 
 import { signIn, signUp, signInWithProvider } from '../../services/authService';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
+import { UserRole } from '../../types';
+import { BrandLogo } from '../../components/common/BrandLogo';
 
-type AuthMode = 'login' | 'register';
+type AuthStep = 'splash' | 'role' | 'login' | 'signup';
 
-export function AuthScreen() {
-  const [mode, setMode] = useState<AuthMode>('login');
+interface AuthScreenProps {
+  onRoleSelected: (role: UserRole) => void;
+}
+
+export function AuthScreen({ onRoleSelected }: AuthScreenProps) {
+  const [step, setStep] = useState<AuthStep>('splash');
+  const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.CAREGIVER);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  const handleEmailLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    if (mode === 'register' && !name) {
-      Alert.alert('Error', 'Please enter your name');
+      setError('Please enter email and password');
       return;
     }
 
     setIsLoading(true);
+    setError(null);
     try {
-      if (mode === 'login') {
-        await signIn({ email, password });
-      } else {
-        await signUp({ email, password, name });
-        Alert.alert('Success', 'Please check your email to verify your account');
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Authentication failed');
+      await signIn({ email, password });
+      onRoleSelected(selectedRole);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleEmailSignup = async () => {
+    if (!email || !password) {
+      setError('Please enter email and password');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setIsLoading(true);
+    setError(null);
     try {
-      await signInWithProvider('google');
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Google sign-in failed');
+      await signUp({ email, password, name: name || undefined });
+      onRoleSelected(selectedRole);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Signup failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleSocialLogin = async (provider: 'google' | 'github') => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signInWithProvider(provider);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Social login failed. Please try again.';
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Splash screen
+  if (step === 'splash') {
+    return (
+      <SafeAreaView style={styles.full}>
+        <View style={styles.splashContainer}>
+          {/* Background decorations */}
+          <View style={styles.gradientTop} />
+          <View style={styles.blobBlueLarge} />
+          <View style={styles.blobOrangeLarge} />
+          <View style={styles.blobYellow} />
+          <View style={styles.blobGreen} />
+
+          {/* Logo - SVG vector */}
+          <View style={styles.logoWrap}>
+            <BrandLogo size={200} />
+          </View>
+
+          <Text style={styles.splashTitle}>Alz Space</Text>
+          <Text style={styles.splashSubtitle}>
+            Reconnecting memories,{'\n'}rhythmic care.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.primaryPill}
+            onPress={() => setStep('role')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.primaryPillText}>Get Started</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Role selection screen
+  if (step === 'role') {
+    return (
+      <SafeAreaView style={styles.full}>
+        <View style={styles.roleContainer}>
+          {/* Background decorations */}
+          <View style={styles.gradientTop} />
+          <View style={styles.blobBlueLarge} />
+          <View style={styles.blobOrangeLarge} />
+          <View style={styles.blobYellow} />
+          <View style={styles.blobGreen} />
+
+          <View style={styles.roleContent}>
+            <Text style={styles.roleTitle}>Choose your identity</Text>
+            <View style={styles.roleCardsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.roleCard,
+                  selectedRole === UserRole.CAREGIVER && styles.roleCardActive,
+                ]}
+                onPress={() => setSelectedRole(UserRole.CAREGIVER)}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.roleIconWrap,
+                    selectedRole === UserRole.CAREGIVER && styles.roleIconActive,
+                  ]}
+                >
+                  <User
+                    size={32}
+                    color={selectedRole === UserRole.CAREGIVER ? Colors.bgWhite : Colors.info}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.roleLabel,
+                    selectedRole === UserRole.CAREGIVER && styles.roleLabelActive,
+                  ]}
+                >
+                  Family
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.roleCard,
+                  selectedRole === UserRole.PATIENT && styles.roleCardActive,
+                ]}
+                onPress={() => setSelectedRole(UserRole.PATIENT)}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.roleIconWrap,
+                    selectedRole === UserRole.PATIENT && styles.roleIconActive,
+                  ]}
+                >
+                  <User
+                    size={32}
+                    color={selectedRole === UserRole.PATIENT ? Colors.bgWhite : Colors.accent}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.roleLabel,
+                    selectedRole === UserRole.PATIENT && styles.roleLabelActive,
+                  ]}
+                >
+                  Patient
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.primaryPill}
+            onPress={() => setStep('login')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.primaryPillText}>Next</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Login / Signup screen
+  const isSignup = step === 'signup';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.full}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={styles.full}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.authScroll}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Alz Space</Text>
-            <Text style={styles.subtitle}>
-              {mode === 'login' ? 'Welcome back!' : 'Create your account'}
+          {/* Background decorations */}
+          <View style={styles.gradientTop} />
+          <View style={styles.blobBlueLarge} />
+          <View style={styles.blobOrangeLarge} />
+          <View style={styles.blobYellow} />
+          <View style={styles.blobGreen} />
+
+          {/* Back button - icon style, 44px minimum */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => setStep('role')}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={24} color={Colors.gray700} />
+          </TouchableOpacity>
+
+          <View style={styles.authHeader}>
+            <Text style={styles.authTitle}>
+              {isSignup ? 'Create Account' : 'Welcome Back'}
+            </Text>
+            <Text style={styles.authSubtitle}>
+              {isSignup
+                ? 'Sign up to get started'
+                : 'Please enter your details to login'}
             </Text>
           </View>
 
-          {/* Form */}
+          {error && (
+            <View style={styles.errorBox}>
+              <AlertCircle size={16} color={Colors.error} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
           <View style={styles.form}>
-            {mode === 'register' && (
+            {isSignup && (
               <View style={styles.inputContainer}>
-                <User size={20} color={Colors.gray400} style={styles.inputIcon} />
+                <User size={18} color={Colors.gray400} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Full Name"
@@ -100,7 +272,7 @@ export function AuthScreen() {
             )}
 
             <View style={styles.inputContainer}>
-              <Mail size={20} color={Colors.gray400} style={styles.inputIcon} />
+              <Mail size={18} color={Colors.gray400} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Email"
@@ -114,7 +286,7 @@ export function AuthScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Lock size={20} color={Colors.gray400} style={styles.inputIcon} />
+              <Lock size={18} color={Colors.gray400} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Password"
@@ -129,53 +301,49 @@ export function AuthScreen() {
                 style={styles.eyeButton}
               >
                 {showPassword ? (
-                  <EyeOff size={20} color={Colors.gray400} />
+                  <EyeOff size={18} color={Colors.gray400} />
                 ) : (
-                  <Eye size={20} color={Colors.gray400} />
+                  <Eye size={18} color={Colors.gray400} />
                 )}
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleSubmit}
+              style={[styles.primaryPill, isLoading && styles.buttonDisabled]}
+              onPress={isSignup ? handleEmailSignup : handleEmailLogin}
               disabled={isLoading}
+              activeOpacity={0.8}
             >
               {isLoading ? (
                 <ActivityIndicator color={Colors.bgWhite} />
               ) : (
-                <Text style={styles.buttonText}>
-                  {mode === 'login' ? 'Sign In' : 'Sign Up'}
+                <Text style={styles.primaryPillText}>
+                  {isSignup ? 'Sign Up' : 'Sign In'}
                 </Text>
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>or</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Google Sign In */}
             <TouchableOpacity
-              style={styles.googleButton}
-              onPress={handleGoogleSignIn}
-              disabled={isLoading}
+              style={styles.socialButton}
+              onPress={() => handleSocialLogin('google')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Toggle Mode */}
           <View style={styles.toggleContainer}>
             <Text style={styles.toggleText}>
-              {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+              {isSignup ? 'Already have an account? ' : "Don't have an account? "}
             </Text>
-            <TouchableOpacity onPress={() => setMode(mode === 'login' ? 'register' : 'login')}>
-              <Text style={styles.toggleLink}>
-                {mode === 'login' ? 'Sign Up' : 'Sign In'}
-              </Text>
+            <TouchableOpacity onPress={() => setStep(isSignup ? 'login' : 'signup')}>
+              <Text style={styles.toggleLink}>{isSignup ? 'Sign In' : 'Sign Up'}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -185,74 +353,262 @@ export function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  full: {
     flex: 1,
     backgroundColor: Colors.bgWhite,
   },
-  keyboardView: {
-    flex: 1,
+
+  // ============ Background Decorations (Standardized) ============
+  gradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 160,
+    backgroundColor: Colors.secondary,
+    opacity: 0.15,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: Layout.spacing.lg,
+  blobBlueLarge: {
+    position: 'absolute',
+    top: -72,
+    left: -72,
+    width: 288,
+    height: 288,
+    borderRadius: 144,
+    backgroundColor: '#DBEAFE',
+    opacity: 0.7,
+  },
+  blobOrangeLarge: {
+    position: 'absolute',
+    bottom: -60,
+    right: -60,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: '#FFEDD5',
+    opacity: 0.7,
+  },
+  blobYellow: {
+    position: 'absolute',
+    top: '30%',
+    right: -80,
+    width: 192,
+    height: 192,
+    borderRadius: 96,
+    backgroundColor: '#FEF9C3',
+    opacity: 0.5,
+  },
+  blobGreen: {
+    position: 'absolute',
+    bottom: '20%',
+    left: -60,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: '#DCFCE7',
+    opacity: 0.4,
+  },
+
+  // ============ Splash Screen ============
+  splashContainer: {
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: Layout.spacing.lg,
+    backgroundColor: Colors.bgWhite,
   },
-  header: {
+  logoWrap: {
+    width: 224,
+    height: 224,
     alignItems: 'center',
-    marginBottom: Layout.spacing.xxl,
+    justifyContent: 'center',
+    marginBottom: Layout.spacing.lg,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    marginBottom: Layout.spacing.sm,
+  logoImage: {
+    width: 224,
+    height: 224,
   },
-  subtitle: {
-    fontSize: Layout.fontSize.lg,
+  splashTitle: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: Colors.gray800,
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  splashSubtitle: {
+    fontSize: 18,
     color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 64,
+    lineHeight: 26,
+    fontWeight: '500',
   },
-  form: {
-    marginBottom: Layout.spacing.xl,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.gray100,
-    borderRadius: Layout.borderRadius.md,
-    marginBottom: Layout.spacing.md,
-    paddingHorizontal: Layout.spacing.md,
-  },
-  inputIcon: {
-    marginRight: Layout.spacing.sm,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: Layout.spacing.md,
-    fontSize: Layout.fontSize.md,
-    color: Colors.textMain,
-  },
-  eyeButton: {
-    padding: Layout.spacing.xs,
-  },
-  button: {
+
+  // ============ Primary Button ============
+  primaryPill: {
     backgroundColor: Colors.primary,
-    paddingVertical: Layout.spacing.md,
-    borderRadius: Layout.borderRadius.md,
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 999,
     alignItems: 'center',
-    marginTop: Layout.spacing.sm,
+    alignSelf: 'stretch',
+    marginHorizontal: Layout.spacing.lg,
+    shadowColor: '#FDBA74',
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  primaryPillText: {
+    color: Colors.bgWhite,
+    fontSize: 16,
+    fontWeight: '700',
   },
   buttonDisabled: {
     opacity: 0.7,
   },
-  buttonText: {
-    color: Colors.bgWhite,
-    fontSize: Layout.fontSize.lg,
-    fontWeight: '600',
+
+  // ============ Role Selection Screen ============
+  roleContainer: {
+    flex: 1,
+    padding: Layout.spacing.lg,
+    backgroundColor: Colors.bgWhite,
+    justifyContent: 'space-between',
+  },
+  roleContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  roleTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    color: Colors.gray800,
+    marginBottom: 32,
+    letterSpacing: -0.5,
+  },
+  roleCardsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  roleCard: {
+    width: 160,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: Colors.gray50,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  roleCardActive: {
+    borderColor: Colors.primary,
+    backgroundColor: '#FFF7ED',
+  },
+  roleIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  roleIconActive: {
+    backgroundColor: Colors.primary,
+  },
+  roleLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.gray600,
+  },
+  roleLabelActive: {
+    color: Colors.primary,
+  },
+
+  // ============ Auth (Login/Signup) Screen ============
+  authScroll: {
+    flexGrow: 1,
+    padding: Layout.spacing.lg,
+    paddingTop: Layout.spacing.md,
+  },
+  backButton: {
+    // 44px minimum size
+    minWidth: 44,
+    minHeight: 44,
+    width: 44,
+    height: 44,
+    padding: 10,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    marginBottom: Layout.spacing.lg,
+  },
+  authHeader: {
+    marginBottom: Layout.spacing.lg,
+  },
+  authTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: Colors.gray800,
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  authSubtitle: {
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: Layout.spacing.md,
+  },
+  errorText: {
+    color: Colors.error,
+    fontSize: 12,
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  form: {
+    gap: 12,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.gray50,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 14,
+    color: Colors.textMain,
+  },
+  eyeButton: {
+    padding: 6,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: Layout.spacing.lg,
+    marginVertical: Layout.spacing.md,
   },
   dividerLine: {
     flex: 1,
@@ -260,35 +616,35 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray200,
   },
   dividerText: {
-    marginHorizontal: Layout.spacing.md,
+    marginHorizontal: 12,
     color: Colors.textMuted,
-    fontSize: Layout.fontSize.sm,
+    fontSize: 12,
   },
-  googleButton: {
+  socialButton: {
     backgroundColor: Colors.bgWhite,
-    paddingVertical: Layout.spacing.md,
-    borderRadius: Layout.borderRadius.md,
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.gray300,
+    borderColor: Colors.gray200,
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
-  googleButtonText: {
+  socialButtonText: {
     color: Colors.textMain,
-    fontSize: Layout.fontSize.md,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   toggleContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: Layout.spacing.xl,
   },
   toggleText: {
     color: Colors.textSecondary,
-    fontSize: Layout.fontSize.md,
+    fontSize: 14,
   },
   toggleLink: {
     color: Colors.primary,
-    fontSize: Layout.fontSize.md,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

@@ -7,21 +7,38 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppNavigator } from './navigation/AppNavigator';
 import { supabase } from './services/supabaseClient';
+import { DeepLinkHandler } from './platform/auth';
+import { UserRole } from './types';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(UserRole.CAREGIVER);
 
   useEffect(() => {
+    // Initialize DeepLinkHandler for OAuth callbacks
+    const initDeepLink = async () => {
+      await DeepLinkHandler.initialize({
+        onAuthSuccess: () => {
+          setIsAuthenticated(true);
+        },
+        onAuthError: (err) => {
+          setError(err.message);
+        },
+      });
+    };
+
+    initDeepLink();
+
     // Check initial auth state
     const checkAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setIsAuthenticated(!!session);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Auth check error:', err);
-        setError(err?.message || 'Auth error');
+        setError(err instanceof Error ? err.message : 'Auth error');
       } finally {
         setIsLoading(false);
       }
@@ -30,11 +47,20 @@ export default function App() {
     checkAuth();
 
     // Subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-    });
+    let subscription: { unsubscribe: () => void } | undefined;
+    try {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        setIsAuthenticated(!!session);
+      });
+      subscription = data.subscription;
+    } catch (err) {
+      console.error('Failed to subscribe to auth changes:', err);
+    }
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription?.unsubscribe();
+      DeepLinkHandler.cleanup();
+    };
   }, []);
 
   if (error) {
@@ -50,7 +76,12 @@ export default function App() {
       <SafeAreaProvider>
         <NavigationContainer>
           <StatusBar style="auto" />
-          <AppNavigator isAuthenticated={isAuthenticated} isLoading={isLoading} />
+          <AppNavigator
+            isAuthenticated={isAuthenticated}
+            isLoading={isLoading}
+            userRole={userRole}
+            onRoleSelected={setUserRole}
+          />
         </NavigationContainer>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -38,7 +38,7 @@ export function useTasks(): UseTasksReturn {
 
       const userTasks = await getTasks(user.id);
       setTasks(userTasks);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || 'Failed to load tasks');
     } finally {
       setIsLoading(false);

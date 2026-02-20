@@ -43,7 +43,7 @@ class SpeechServiceClass {
       };
 
       await Speech.speak(text, speechOptions);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[SpeechService iOS] Speak error:', error);
       options.onError?.(error);
     }

@@ -1,18 +1,23 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, ListTodo, Users, User } from 'lucide-react-native';
 
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { TaskDashboardScreen } from '../screens/tasks/TaskDashboardScreen';
 import { CommunityScreen } from '../screens/community/CommunityScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { ChatScreen } from '../screens/chat/ChatScreen';
 import { Colors } from '../constants/colors';
-import type { MainTabParamList } from '../types';
+import { TabBar } from '../components/navigation/TabBar';
+import type { UserRole, MainTabParamList } from '../types';
 
-const Tab = createBottomTabNavigator<MainTabParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList & { Chat: undefined }>();
 
-export function MainTabNavigator() {
+interface MainTabNavigatorProps {
+  userRole: UserRole;
+}
+
+export function MainTabNavigator({ userRole }: MainTabNavigatorProps) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -22,42 +27,62 @@ export function MainTabNavigator() {
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
       }}
+      tabBar={({ state, navigation }) => {
+        const activeRoute = state.routes[state.index]?.name;
+        const activeTab = activeRoute ? activeRoute.toLowerCase() : 'home';
+        return (
+          <TabBar
+            activeTab={activeTab}
+            role={userRole}
+            onTabPress={(tab) =>
+              navigation.navigate(
+                tab === 'tasks'
+                  ? 'Tasks'
+                  : tab === 'community'
+                  ? 'Community'
+                  : tab === 'profile'
+                  ? 'Profile'
+                  : tab === 'chat'
+                  ? 'Chat'
+                  : 'Home'
+              )
+            }
+            onFabSelect={(action) => {
+              const parent = navigation.getParent();
+              if (action === 'task') {
+                parent?.navigate('CreateTask');
+              } else {
+                parent?.navigate('Assets');
+              }
+            }}
+          />
+        );
+      }}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Home color={color} size={size} />
-          ),
-        }}
+        options={{ tabBarButton: () => null }}
       />
       <Tab.Screen
         name="Tasks"
         component={TaskDashboardScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <ListTodo color={color} size={size} />
-          ),
-        }}
+        options={{ tabBarButton: () => null }}
       />
       <Tab.Screen
         name="Community"
         component={CommunityScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Users color={color} size={size} />
-          ),
-        }}
+        options={{ tabBarButton: () => null }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <User color={color} size={size} />
-          ),
-        }}
+        options={{ tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ tabBarButton: () => null }}
       />
     </Tab.Navigator>
   );
