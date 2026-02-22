@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -39,11 +39,6 @@ export function TaskDashboardScreen() {
     }, [loadData])
   );
 
-  const { width: screenWidth } = useWindowDimensions();
-  const gridPadding = 20;
-  const gridGap = 16;
-  const cardWidth = Math.floor((screenWidth - gridPadding * 2 - gridGap) / 2);
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Background decorations (standardized) */}
@@ -56,7 +51,7 @@ export function TaskDashboardScreen() {
 
         {/* Row 1: Assets + Tasks */}
         <View style={styles.gridRow}>
-          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowOrange, { width: cardWidth }]} onPress={() => navigation.navigate('Assets')}>
+          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowOrange, styles.gridCard]} onPress={() => navigation.navigate('Assets')}>
             <LinearGradient
               colors={['#FF8C42', '#FF6B00']}
               start={{ x: 0, y: 0 }}
@@ -78,7 +73,7 @@ export function TaskDashboardScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowBlue, { width: cardWidth }]} onPress={() => navigation.navigate('TaskList')}>
+          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowBlue, styles.gridCard]} onPress={() => navigation.navigate('TaskList')}>
             <LinearGradient
               colors={['#38BDF8', '#0EA5E9']}
               start={{ x: 0, y: 0 }}
@@ -103,7 +98,7 @@ export function TaskDashboardScreen() {
 
         {/* Row 2: Analytics + Patient AI */}
         <View style={styles.gridRow}>
-          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowPurple, { width: cardWidth }]} onPress={() => navigation.navigate('Statistics')}>
+          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowPurple, styles.gridCard]} onPress={() => navigation.navigate('Statistics')}>
             <LinearGradient
               colors={['#A78BFA', '#7C3AED']}
               start={{ x: 0, y: 0 }}
@@ -126,7 +121,7 @@ export function TaskDashboardScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowGreen, { width: cardWidth }]} onPress={() => navigation.navigate('PatientAISettings')}>
+          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowGreen, styles.gridCard]} onPress={() => navigation.navigate('PatientAISettings')}>
             <LinearGradient
               colors={['#4ADE80', '#22C55E']}
               start={{ x: 0, y: 0 }}
@@ -204,8 +199,11 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 16,
     marginBottom: 16,
+  },
+  gridCard: {
+    flex: 1,
   },
   cardShadow: {
     borderRadius: 40,

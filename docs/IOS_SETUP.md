@@ -109,8 +109,17 @@ pod install --repo-update
 ```
 
 ### Signing Issues
-- Ensure your Apple Developer account is connected in Xcode
-- Select the correct team in Signing & Capabilities
+
+**"Signing for AlzSpace requires a development team"**
+
+1. Open `ios/AlzSpace.xcworkspace` in Xcode (not the `.xcodeproj`)
+2. Select the **AlzSpace** target in the project navigator
+3. Open the **Signing & Capabilities** tab
+4. Enable **Automatically manage signing**
+5. Select your **Team** from the dropdown
+   - Add your Apple ID in **Xcode → Settings → Accounts** if needed
+   - A free Apple ID gives you a "Personal Team" for simulator and device testing
+6. Xcode will persist your Team ID in the project
 
 ### Push Notifications Not Working
 - Verify APNs key is correctly configured

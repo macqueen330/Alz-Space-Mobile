@@ -51,10 +51,6 @@
     <string>Allow Alz Space to access the microphone for voice input.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>Allow Alz Space to use speech recognition.</string>
-    <key>UIBackgroundModes</key>
-    <array>
-      <string>remote-notification</string>
-    </array>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
