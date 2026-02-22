@@ -175,4 +175,4 @@ See [`docs/IOS_SETUP.md`](docs/IOS_SETUP.md) and [`docs/ANDROID_SETUP.md`](docs/
 
 ## License
 
-Private -- All rights reserved.
+This project is source-available for viewing and reference only. See [LICENSE](LICENSE) for details. No permission is granted to use, copy, modify, or distribute this software without prior written consent.
