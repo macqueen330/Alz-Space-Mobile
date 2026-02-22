@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -39,6 +39,11 @@ export function TaskDashboardScreen() {
     }, [loadData])
   );
 
+  const { width: screenWidth } = useWindowDimensions();
+  const gridPadding = 20;
+  const gridGap = 16;
+  const cardWidth = Math.floor((screenWidth - gridPadding * 2 - gridGap) / 2);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Background decorations (standardized) */}
@@ -49,8 +54,9 @@ export function TaskDashboardScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Management</Text>
 
-        <View style={styles.grid}>
-          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowOrange]} onPress={() => navigation.navigate('Assets')}>
+        {/* Row 1: Assets + Tasks */}
+        <View style={styles.gridRow}>
+          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowOrange, { width: cardWidth }]} onPress={() => navigation.navigate('Assets')}>
             <LinearGradient
               colors={['#FF8C42', '#FF6B00']}
               start={{ x: 0, y: 0 }}
@@ -72,7 +78,7 @@ export function TaskDashboardScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowBlue]} onPress={() => navigation.navigate('TaskList')}>
+          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowBlue, { width: cardWidth }]} onPress={() => navigation.navigate('TaskList')}>
             <LinearGradient
               colors={['#38BDF8', '#0EA5E9']}
               start={{ x: 0, y: 0 }}
@@ -93,8 +99,11 @@ export function TaskDashboardScreen() {
               </View>
             </LinearGradient>
           </TouchableOpacity>
+        </View>
 
-          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowPurple, styles.tallCard]} onPress={() => navigation.navigate('Statistics')}>
+        {/* Row 2: Analytics + Patient AI */}
+        <View style={styles.gridRow}>
+          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowPurple, { width: cardWidth }]} onPress={() => navigation.navigate('Statistics')}>
             <LinearGradient
               colors={['#A78BFA', '#7C3AED']}
               start={{ x: 0, y: 0 }}
@@ -117,7 +126,7 @@ export function TaskDashboardScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowGreen, styles.tallCard]} onPress={() => navigation.navigate('PatientAISettings')}>
+          <TouchableOpacity style={[styles.cardShadow, styles.cardShadowGreen, { width: cardWidth }]} onPress={() => navigation.navigate('PatientAISettings')}>
             <LinearGradient
               colors={['#4ADE80', '#22C55E']}
               start={{ x: 0, y: 0 }}
@@ -193,13 +202,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     letterSpacing: -0.5,
   },
-  grid: {
+  gridRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   cardShadow: {
-    width: '48%',
     borderRadius: 40,
     shadowOpacity: 0.25,
     shadowRadius: 16,
@@ -292,9 +300,6 @@ const styles = StyleSheet.create({
     color: Colors.bgWhite,
     textTransform: 'uppercase',
     letterSpacing: 1,
-  },
-  tallCard: {
-    width: '48%',
   },
   tallCardInner: {
     minHeight: 220,
